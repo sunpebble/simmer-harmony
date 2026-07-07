@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.3](https://github.com/sunpebble/simmer-harmony/compare/v0.1.2...v0.1.3) (2026-07-07)
+
+
+### Bug Fixes
+
+* attach signed hap to GitHub release for manual first upload ([3e5bb7c](https://github.com/sunpebble/simmer-harmony/commit/3e5bb7c681a09d4687548163ede338c8b95fe56a))
+
 ## [0.1.2](https://github.com/sunpebble/simmer-harmony/compare/v0.1.1...v0.1.2) (2026-07-07)
 
 

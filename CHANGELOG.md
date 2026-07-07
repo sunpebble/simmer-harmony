@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.4](https://github.com/sunpebble/simmer-harmony/compare/v0.1.3...v0.1.4) (2026-07-07)
+
+
+### Bug Fixes
+
+* unlock Pro features by default (no payment SDK on HarmonyOS; stub paywall would fail review) ([8f5eb0c](https://github.com/sunpebble/simmer-harmony/commit/8f5eb0cd59fd80536ebf82976b903ffdde56ef2d))
+
 ## [0.1.3](https://github.com/sunpebble/simmer-harmony/compare/v0.1.2...v0.1.3) (2026-07-07)
 
 

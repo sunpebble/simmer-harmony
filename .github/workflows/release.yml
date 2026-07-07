@@ -38,7 +38,7 @@ jobs:
       compatible_version: "23"
       sdk_api_level: "23"
       submit_for_review: false
-      agc_upload: ${{ github.event_name == 'workflow_dispatch' }}
+      agc_upload: false
       agc_app_id: "6917610264039358139"
       version: ${{ github.event_name == 'workflow_dispatch' && inputs.version || needs.release-please.outputs.version }}
     secrets: inherit

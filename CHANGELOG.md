@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.2.0](https://github.com/sunpebble/simmer-harmony/compare/v0.1.4...v0.2.0) (2026-07-08)
+
+
+### Features
+
+* sync V2 migration + platform optimization from harmony-kit ([6cb7949](https://github.com/sunpebble/simmer-harmony/commit/6cb7949ff9111d8a5739209d64c583335288779e))
+
+
+### Bug Fixes
+
+* add @Trace to KitchenTimer.seconds + remove dead confirmingPresetId + orphaned string ([c262be7](https://github.com/sunpebble/simmer-harmony/commit/c262be7fde407c21d844e12df67ee1ae202c1d27))
+
 ## [0.1.4](https://github.com/sunpebble/simmer-harmony/compare/v0.1.3...v0.1.4) (2026-07-07)
 
 

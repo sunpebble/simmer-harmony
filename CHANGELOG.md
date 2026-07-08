@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.1](https://github.com/sunpebble/simmer-harmony/compare/v0.2.0...v0.2.1) (2026-07-08)
+
+
+### Bug Fixes
+
+* layered launcher icon + RESIZE keyboard + safe-area inset timing for AGC re-review ([a1d2938](https://github.com/sunpebble/simmer-harmony/commit/a1d2938df811d03383a112a7dd5112de19b19a89))
+
 ## [0.2.0](https://github.com/sunpebble/simmer-harmony/compare/v0.1.4...v0.2.0) (2026-07-08)
 
 

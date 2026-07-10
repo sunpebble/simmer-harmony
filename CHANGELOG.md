@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.2](https://github.com/sunpebble/simmer-harmony/compare/v0.2.1...v0.2.2) (2026-07-10)
+
+
+### Bug Fixes
+
+* clamp custom timer labels and center single-timer tablet layout for AGC re-review ([27d5fdb](https://github.com/sunpebble/simmer-harmony/commit/27d5fdbc0e88eed3aed06a1590c170120591611e))
+
 ## [0.2.1](https://github.com/sunpebble/simmer-harmony/compare/v0.2.0...v0.2.1) (2026-07-08)
 
 

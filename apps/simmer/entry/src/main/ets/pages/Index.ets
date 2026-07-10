@@ -74,6 +74,17 @@ PersistentStorage.persistProp('simmer.savedPresets.v1', '')
 PersistentStorage.persistProp('simmer.nextPresetId.v1', 1)
 PersistentStorage.persistProp('simmer.proUnlocked.v1', true)
 
+// Keep custom labels short so toast / reminder / burner row stay readable (AGC review).
+const LABEL_MAX_LENGTH: number = 24
+
+function clampLabel(label: string): string {
+  const trimmed = label.trim()
+  if (trimmed.length <= LABEL_MAX_LENGTH) {
+    return trimmed
+  }
+  return trimmed.substring(0, LABEL_MAX_LENGTH)
+}
+
 // Stored timer/preset labels stay English (persisted data keys); translate at display only.
 function presetLabelRes(label: string): Resource | undefined {
   switch (label) {
@@ -185,7 +196,7 @@ struct Burner {
       .bindContextMenu(this.burnerMenu, ResponseType.LongPress)
 
       Row() {
-        Text(displayLabel(this.getUIContext().getHostContext(), this.timer.label).toUpperCase())
+        Text(clampLabel(displayLabel(this.getUIContext().getHostContext(), this.timer.label)).toUpperCase())
           .fontSize(11)
           .fontWeight(FontWeight.Medium)
           .fontColor(SunColor.pebble)
@@ -264,7 +275,8 @@ struct Index {
     this.customMinutes = AppStorage.get<number>('simmer.customMinutes.v1') ?? 5
     this.customSeconds = AppStorage.get<number>('simmer.customSeconds.v1') ?? 0
     this.customEmoji = AppStorage.get<string>('simmer.customEmoji.v1') ?? '🍲'
-    this.customLabelText = AppStorage.get<string>('simmer.customLabel.v1') ?? ''
+    this.customLabelText = clampLabel(AppStorage.get<string>('simmer.customLabel.v1') ?? '')
+    AppStorage.setOrCreate('simmer.customLabel.v1', this.customLabelText)
     this.savedPresetsJson = AppStorage.get<string>('simmer.savedPresets.v1') ?? ''
     this.nextPresetId = AppStorage.get<number>('simmer.nextPresetId.v1') ?? 1
     this.proUnlocked = AppStorage.get<boolean>('simmer.proUnlocked.v1') ?? true
@@ -368,7 +380,13 @@ struct Index {
       }
       usedIds.push(id)
       nextId = Math.max(nextId, id + 1)
-      const normalizedPreset: SavedPresetTimer = { id, emoji: preset.emoji, label: preset.label, seconds: preset.seconds }
+      const clampedLabel = clampLabel(preset.label)
+      const normalizedPreset: SavedPresetTimer = {
+        id,
+        emoji: preset.emoji,
+        label: clampedLabel.length > 0 ? clampedLabel : 'Timer',
+        seconds: preset.seconds
+      }
       return normalizedPreset
     })
     this.nextPresetId = nextId
@@ -389,9 +407,10 @@ struct Index {
       }
       usedIds.push(id)
       nextId = Math.max(nextId, id + 1)
+      const clamped = clampLabel(timer.label)
       const normalizedTimer: TimerSnapshot = {
         id,
-        label: timer.label,
+        label: clamped.length > 0 ? clamped : 'Timer',
         emoji: timer.emoji,
         seconds: timer.seconds,
         remaining: timer.remaining,
@@ -426,8 +445,13 @@ struct Index {
   }
 
   private customLabel(): string {
-    const label = this.customLabelText.trim()
+    const label = clampLabel(this.customLabelText)
     return label.length > 0 ? label : 'Timer'
+  }
+
+  private setCustomLabelText(value: string): void {
+    this.customLabelText = value.length > LABEL_MAX_LENGTH ? value.substring(0, LABEL_MAX_LENGTH) : value
+    AppStorage.setOrCreate('simmer.customLabel.v1', this.customLabelText)
   }
 
   private setCustomMinutes(minutes: number): void {
@@ -445,7 +469,18 @@ struct Index {
       this.showPaywall()
       return false
     }
-    this.timers = [...this.timers, new KitchenTimer(this.nextId, label, emoji, seconds, seconds, true, false, Date.now() + seconds * 1000, 0)]
+    const safeLabel = clampLabel(label)
+    this.timers = [...this.timers, new KitchenTimer(
+      this.nextId,
+      safeLabel.length > 0 ? safeLabel : 'Timer',
+      emoji,
+      seconds,
+      seconds,
+      true,
+      false,
+      Date.now() + seconds * 1000,
+      0
+    )]
     this.nextId += 1
     AppStorage.setOrCreate('simmer.nextId.v1', this.nextId)
     this.saveTimersAndSyncReminders()
@@ -693,7 +728,7 @@ struct Index {
   }
 
   private labelText(label: string): string {
-    return displayLabel(this.getUIContext().getHostContext(), label)
+    return clampLabel(displayLabel(this.getUIContext().getHostContext(), label))
   }
 
   private showToast(message: ResourceStr): void {
@@ -745,13 +780,20 @@ struct Index {
   }
 
   private gridColumns(): string {
+    let maxCols = 1
     if (this.containerWidth >= 840) {
-      return '1fr 1fr 1fr'
+      maxCols = 3
+    } else if (this.containerWidth >= 600) {
+      maxCols = 2
     }
-    if (this.containerWidth >= 600) {
+    const cols = Math.min(maxCols, Math.max(1, this.timers.length))
+    if (cols <= 1) {
+      return '1fr'
+    }
+    if (cols === 2) {
       return '1fr 1fr'
     }
-    return '1fr'
+    return '1fr 1fr 1fr'
   }
 
   @Builder
@@ -760,14 +802,18 @@ struct Index {
       Grid() {
         ForEach(this.timers, (timer: KitchenTimer) => {
           GridItem() {
-            Burner({
-              timer: timer,
-              nowMs: this.nowMs,
-              onTap: (id: number) => this.handleTimerTap(id),
-              onAddMinute: (id: number) => this.addMinute(id),
-              onRestart: (id: number) => this.restartTimer(id),
-              onCancel: (id: number) => this.deleteTimer(id)
-            })
+            Column() {
+              Burner({
+                timer: timer,
+                nowMs: this.nowMs,
+                onTap: (id: number) => this.handleTimerTap(id),
+                onAddMinute: (id: number) => this.addMinute(id),
+                onRestart: (id: number) => this.restartTimer(id),
+                onCancel: (id: number) => this.deleteTimer(id)
+              })
+            }
+            .width('100%')
+            .alignItems(HorizontalAlign.Center)
           }
         }, (timer: KitchenTimer) => timer.id.toString())
       }
@@ -787,126 +833,130 @@ struct Index {
   @Builder
   private customPanel() {
     if (this.customOpen) {
-      Column({ space: SunSpacing.md }) {
-        Text($r('app.string.simmer_custom_title'))
-          .fontSize(12)
-          .fontWeight(FontWeight.Bold)
-          .letterSpacing(2)
-          .fontColor(SunColor.pebble)
+      Scroll() {
+        Column({ space: SunSpacing.md }) {
+          Text($r('app.string.simmer_custom_title'))
+            .fontSize(12)
+            .fontWeight(FontWeight.Bold)
+            .letterSpacing(2)
+            .fontColor(SunColor.pebble)
 
-        Scroll() {
-          Row({ space: SunSpacing.sm }) {
-            ForEach(this.customEmojis, (emoji: string) => {
-              Button({ type: ButtonType.Normal }) {
-                Text(emoji)
-                  .fontSize(22)
-                  .lineHeight(26)
-                  .textAlign(TextAlign.Center)
-                  .width('100%')
-              }
-              .width(44)
-              .height(44)
-              .padding(0)
-              .borderRadius(999)
-              .backgroundColor(this.customEmoji === emoji ? SunColor.sun : SunColor.white)
-              .onClick(() => {
-                this.customEmoji = emoji
-                AppStorage.setOrCreate('simmer.customEmoji.v1', this.customEmoji)
-              })
-            }, (emoji: string) => emoji)
+          Scroll() {
+            Row({ space: SunSpacing.sm }) {
+              ForEach(this.customEmojis, (emoji: string) => {
+                Button({ type: ButtonType.Normal }) {
+                  Text(emoji)
+                    .fontSize(22)
+                    .lineHeight(26)
+                    .textAlign(TextAlign.Center)
+                    .width('100%')
+                }
+                .width(44)
+                .height(44)
+                .padding(0)
+                .borderRadius(999)
+                .backgroundColor(this.customEmoji === emoji ? SunColor.sun : SunColor.white)
+                .onClick(() => {
+                  this.customEmoji = emoji
+                  AppStorage.setOrCreate('simmer.customEmoji.v1', this.customEmoji)
+                })
+              }, (emoji: string) => emoji)
+            }
           }
-        }
-        .width('100%')
-        .height(42)
-        .scrollable(ScrollDirection.Horizontal)
-        .scrollBar(BarState.Off)
-
-        Row({ space: SunSpacing.sm }) {
-          TextPicker({ range: this.customMinuteOptions(), selected: this.customMinutes })
-            .layoutWeight(1)
-            .height(130)
-            .selectedTextStyle({ color: SunColor.ink, font: { size: 22, weight: FontWeight.Bold } })
-            .textStyle({ color: SunColor.pebble, font: { size: 18, weight: FontWeight.Medium } })
-            .onChange((_value: string | string[], index: number | number[]) => {
-              if (typeof index === 'number') {
-                this.setCustomMinutes(index)
-              }
-            })
-
-          TextPicker({
-            range: this.customSecondLabels(),
-            selected: Math.max(0, this.customSecondOptions.indexOf(this.customSeconds))
-          })
-            .layoutWeight(1)
-            .height(130)
-            .selectedTextStyle({ color: SunColor.ink, font: { size: 22, weight: FontWeight.Bold } })
-            .textStyle({ color: SunColor.pebble, font: { size: 18, weight: FontWeight.Medium } })
-            .onChange((_value: string | string[], index: number | number[]) => {
-              if (typeof index === 'number') {
-                this.setCustomSeconds(this.customSecondOptions[index])
-              }
-            })
-        }
-        .width('100%')
-
-        TextInput({ placeholder: $r('app.string.simmer_label_placeholder'), text: this.customLabelText })
-          .height(44)
           .width('100%')
-          .fontSize(14)
-          .fontColor(SunColor.ink)
-          .backgroundColor(SunColor.white)
-          .borderRadius(8)
-          .border({ width: 1, color: SunColor.hairline })
-          .onChange((value: string) => {
-            this.customLabelText = value
-            AppStorage.setOrCreate('simmer.customLabel.v1', this.customLabelText)
-          })
+          .height(42)
+          .scrollable(ScrollDirection.Horizontal)
+          .scrollBar(BarState.Off)
 
-        if (this.proUnlocked) {
-          Button($r('app.string.simmer_save_as_preset'))
+          Row({ space: SunSpacing.sm }) {
+            TextPicker({ range: this.customMinuteOptions(), selected: this.customMinutes })
+              .layoutWeight(1)
+              .height(130)
+              .selectedTextStyle({ color: SunColor.ink, font: { size: 22, weight: FontWeight.Bold } })
+              .textStyle({ color: SunColor.pebble, font: { size: 18, weight: FontWeight.Medium } })
+              .onChange((_value: string | string[], index: number | number[]) => {
+                if (typeof index === 'number') {
+                  this.setCustomMinutes(index)
+                }
+              })
+
+            TextPicker({
+              range: this.customSecondLabels(),
+              selected: Math.max(0, this.customSecondOptions.indexOf(this.customSeconds))
+            })
+              .layoutWeight(1)
+              .height(130)
+              .selectedTextStyle({ color: SunColor.ink, font: { size: 22, weight: FontWeight.Bold } })
+              .textStyle({ color: SunColor.pebble, font: { size: 18, weight: FontWeight.Medium } })
+              .onChange((_value: string | string[], index: number | number[]) => {
+                if (typeof index === 'number') {
+                  this.setCustomSeconds(this.customSecondOptions[index])
+                }
+              })
+          }
+          .width('100%')
+
+          TextInput({ placeholder: $r('app.string.simmer_label_placeholder'), text: this.customLabelText })
+            .height(44)
+            .width('100%')
+            .fontSize(14)
+            .fontColor(SunColor.ink)
+            .backgroundColor(SunColor.white)
+            .borderRadius(8)
+            .border({ width: 1, color: SunColor.hairline })
+            .maxLength(LABEL_MAX_LENGTH)
+            .onChange((value: string) => this.setCustomLabelText(value))
+
+          if (this.proUnlocked) {
+            Button($r('app.string.simmer_save_as_preset'))
+              .height(38)
+              .width('100%')
+              .borderRadius(SunRadius.pill)
+              .backgroundColor(this.customSaveAsPreset ? SunColor.sun : SunColor.white)
+              .fontColor(SunColor.ink)
+              .fontSize(12)
+              .fontWeight(FontWeight.Bold)
+              .border({ width: 1, color: SunColor.hairline })
+              .onClick(() => this.customSaveAsPreset = !this.customSaveAsPreset)
+          }
+
+          Button($r('app.string.simmer_start'))
+            .height(44)
+            .width('100%')
+            .borderRadius(SunRadius.pill)
+            .backgroundColor(SunColor.ink)
+            .fontColor(SunColor.cream)
+            .fontSize(15)
+            .fontWeight(FontWeight.Bold)
+            .enabled(this.customSecondsTotal() > 0)
+            .opacity(this.customSecondsTotal() > 0 ? 1 : 0.5)
+            .onClick(() => this.startCustomFromPanel())
+
+          Button($r('app.string.simmer_action_cancel'))
             .height(38)
             .width('100%')
             .borderRadius(SunRadius.pill)
-            .backgroundColor(this.customSaveAsPreset ? SunColor.sun : SunColor.white)
+            .backgroundColor(SunColor.white)
             .fontColor(SunColor.ink)
             .fontSize(12)
             .fontWeight(FontWeight.Bold)
             .border({ width: 1, color: SunColor.hairline })
-            .onClick(() => this.customSaveAsPreset = !this.customSaveAsPreset)
+            .onClick(() => {
+              this.customOpen = false
+              this.customSaveAsPreset = false
+            })
+
         }
-
-        Button($r('app.string.simmer_start'))
-          .height(44)
-          .width('100%')
-          .borderRadius(SunRadius.pill)
-          .backgroundColor(SunColor.ink)
-          .fontColor(SunColor.cream)
-          .fontSize(15)
-          .fontWeight(FontWeight.Bold)
-          .enabled(this.customSecondsTotal() > 0)
-          .opacity(this.customSecondsTotal() > 0 ? 1 : 0.5)
-          .onClick(() => this.startCustomFromPanel())
-
-        Button($r('app.string.simmer_action_cancel'))
-          .height(38)
-          .width('100%')
-          .borderRadius(SunRadius.pill)
-          .backgroundColor(SunColor.white)
-          .fontColor(SunColor.ink)
-          .fontSize(12)
-          .fontWeight(FontWeight.Bold)
-          .border({ width: 1, color: SunColor.hairline })
-          .onClick(() => {
-            this.customOpen = false
-            this.customSaveAsPreset = false
-          })
-
+        .width('100%')
+        .padding(SunSpacing.lg)
+        .backgroundColor(SunColor.panelTint)
+        .border({ width: 1, color: SunColor.hairline })
+        .borderRadius(18)
       }
       .width('100%')
-      .padding(SunSpacing.lg)
-      .backgroundColor(SunColor.panelTint)
-      .border({ width: 1, color: SunColor.hairline })
-      .borderRadius(18)
+      .constraintSize({ maxHeight: '55%' })
+      .scrollBar(BarState.Off)
+      .edgeEffect(EdgeEffect.Spring)
     }
   }
 
